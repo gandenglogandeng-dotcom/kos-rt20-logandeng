@@ -115,12 +115,27 @@ async function ambilSemuaPenghuni() {
   return res.data.values || [];
 }
 
+/**
+ * Menulis baris baru TEPAT di baris kosong berikutnya, dihitung sendiri secara eksplisit
+ * (bukan memakai values.append dan membiarkan Google menebak posisi tabelnya).
+ *
+ * Kenapa diubah: values.append mendeteksi "tabel" secara otomatis berdasarkan sel yang
+ * terisi, dan tebakannya bisa salah kalau baris sebelumnya punya sel kosong di tengah
+ * (misalnya kolom Nama Kos kosong) atau kalau sheet belum punya baris judul sama sekali —
+ * pernah menyebabkan baris baru tertulis mulai dari kolom E, bukan kolom A.
+ */
 async function tambahBarisPenghuni(baris) {
-  await sheets().spreadsheets.values.append({
+  const existing = await sheets().spreadsheets.values.get({
     spreadsheetId: spreadsheetId(),
-    range: SHEET_DATA + '!A:L',
+    range: SHEET_DATA + '!A2:A'   // hanya kolom ID, mulai baris 2 (baris 1 = judul)
+  });
+  const jumlahBarisTerisi = (existing.data.values || []).length;
+  const barisTujuan = jumlahBarisTerisi + 2; // +2 = lewati baris judul, +1 untuk baris kosong berikutnya
+
+  await sheets().spreadsheets.values.update({
+    spreadsheetId: spreadsheetId(),
+    range: SHEET_DATA + '!A' + barisTujuan + ':L' + barisTujuan,
     valueInputOption: 'USER_ENTERED',
-    insertDataOption: 'INSERT_ROWS',
     requestBody: { values: [baris] }
   });
 }
